@@ -8,8 +8,8 @@ init.load()
 
 # homepath = '/work/csp/mg20022/charts/CESM-DART'
 img = Image.open(f"{st.session_state['homepath']}/.thumb.jpg")
-
-st.set_page_config(page_title='CMCC-DART', page_icon=img) # , layout="wide"
+img2 = Image.open(f"{st.session_state['homepath']}/.thumb2.jpg")
+st.set_page_config(page_title='CMCC-DART', page_icon=img2, layout="wide") # , layout="wide"
 
 # Remove menu 
 # #MainMenu {visibility: hidden; }
@@ -18,7 +18,7 @@ hide_menu = """
         footer {visibility: hidden;}
         footer:after{
             visibility: visible;
-            content: 'Copyright @ 2022: CMCC';
+            content: 'Copyright @ 2023: CMCC';
             color: gray;
             position:relative;
         }

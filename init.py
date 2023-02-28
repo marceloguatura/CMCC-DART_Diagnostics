@@ -5,6 +5,7 @@ import numpy as np
 def load():
     homepath = '/work/csp/mg20022/charts/CESM-DART'
 
+
     if 'load' not in st.session_state: st.session_state['load'] = False
     if 'name' not in st.session_state: st.session_state['name'] = ''
     if 'path' not in st.session_state: st.session_state['path'] = ''
@@ -46,3 +47,4 @@ def load():
         exp2 = glob.glob(f"/work/csp/mg20022/charts/CESM-DART/src/experiments/*")
         st.session_state['experiments'] = { 'exp': [x.split('/')[-1] for x in exp1 + exp2 ],
                                             'path' : exp1 + exp2}
+        
