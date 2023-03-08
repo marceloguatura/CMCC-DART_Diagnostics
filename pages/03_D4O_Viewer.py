@@ -18,7 +18,6 @@ img = Image.open(f"{st.session_state['homepath']}/.thumb.jpg")
 img2 = Image.open(f"{st.session_state['homepath']}/.thumb2.jpg")
 st.set_page_config(page_title='CMCC-DART', page_icon=img2, layout="wide") # , layout="wide"
 
-
 hide_menu = """
         <style>
         footer {visibility: hidden;}
@@ -32,6 +31,17 @@ hide_menu = """
         """
 st.markdown(hide_menu, unsafe_allow_html=True)
 
+test = st.sidebar.selectbox("Select test:", ['test1', 'test2'], index=0)
+
+vardict = { 
+
+        2 : "Temperature (k)",
+        3 : "Zonal Wind (m/s)",
+        4 : "Meridional Wind (m/s)"
+
+
+}
+
 if 'd4o' not in st.session_state:
     conn = sqlite3.connect("../data/db/ACAR.1.db", uri=True)
     cursor = conn.cursor()
@@ -42,9 +52,9 @@ if 'd4o' not in st.session_state:
 
     ds = pd.merge(hdr, body, on="id", how='left')
 
-    data = ds[ds['varno'] == 2 ]
-    data = data[data['timeslot'] == 1 ]
-    st.session_state['d4o'] = data
+    # data = ds[ds['varno'] == 2 ]
+    # data = data[data['timeslot'] == 1 ]
+    st.session_state['d4o'] = ds
 
 # X = st.sidebar.slider("X", min_value=-90, max_value=90, step=1)
 # Y = st.sidebar.slider("Y", min_value=-90, max_value=90, step=1)
@@ -60,14 +70,30 @@ if 'd4o' not in st.session_state:
 #        'qc', 'dart_qc'],
 #       dtype='object')
 
-var = st.sidebar.selectbox("Field", ['fg_error_variance', 'obsvalue',
+date = st.sidebar.selectbox("Select date:", st.session_state['d4o']['yyyymmdd'].unique())
+data = st.session_state['d4o'][st.session_state['d4o']['yyyymmdd'] == date]
+
+var = st.sidebar.selectbox("Variable:", [vardict[v] for v in data['varno'].unique()] , index=0)
+for vnum in vardict.keys():
+    if var == vardict.get(vnum):
+        break
+data = data[data['varno'] == vnum]
+
+timeslot = st.sidebar.selectbox("Timeslot:", data['timeslot'].unique(), index=0)
+data = data[data['timeslot'] == timeslot]
+
+field = st.sidebar.selectbox("Field", ['fg_error_variance', 'obsvalue',
                     'prior_mean', 'posterior_mean', 'prior_spread', 'posterior_spread',
                     'qc', 'dart_qc'], index=1)
 
-date = st.sidebar.selectbox("Select date:", st.session_state['d4o']['yyyymmdd'].unique())
+min, max = data['hhmmss'].min(), data['hhmmss'].max()
+hours = st.sidebar.select_slider("Filter hhmmss:", np.linspace(min, max, max+1, dtype=int), value=[min, max])
+data = data[(data['hhmmss'] >= hours[0]) & (data['hhmmss'] <= hours[1])]
+# lev = st.sidebar.select_slider("Filter Levs:", np.sort(st.session_state['d4o']['height'].unique()), value=[st.session_state['d4o']['height'].min(), st.session_state['d4o']['height'].max()])
+lev = st.sidebar.select_slider("Filter Levs:", np.linspace(0,14000,201), value=[0, 14000])
+data = data[(data['height'] >= lev[0]) & (data['height'] <= lev[1])]
 
-hours = st.sidebar.select_slider("Filter Hours:", st.session_state['d4o']['hhmmss'].unique(), value=[st.session_state['d4o']['hhmmss'].unique().min(), st.session_state['d4o']['hhmmss'].unique().max()])
-lev = st.sidebar.select_slider("Filter Levs:", np.sort(st.session_state['d4o']['height'].unique()), value=[st.session_state['d4o']['height'].min(), st.session_state['d4o']['height'].max()])
+# Rotation View
 Z = st.sidebar.slider("Rotation View", min_value=0, max_value=180, step=1, value=40)
 
 def d4oviewer():
@@ -75,16 +101,6 @@ def d4oviewer():
     fig = plt.figure(figsize=(10,8))
     axes = fig.add_subplot(111, projection = '3d')
     
-    data = st.session_state['d4o'][st.session_state['d4o']['yyyymmdd'] == date]
-
-    data = data[(data['hhmmss'] >= hours[0]) & (data['hhmmss'] <= hours[1])]
-    data = data[(data['height'] >= lev[0]) & (data['height'] <= lev[1])]
-
-    lons = data['lon'].values*1/0.017453
-    lats = data['deglat'].values
-    levs = data['height'].values
-    val =  data[var].values
-
     target_projection = ccrs.PlateCarree()
 
     feature = cartopy.feature.NaturalEarthFeature('physical', 'coastline', '110m')
@@ -107,13 +123,15 @@ def d4oviewer():
 
     axes.add_collection3d(lc)
 
-    figure = axes.scatter(lons, lats, levs , c=val, cmap=plt.cm.jet, s=10)
+    figure = axes.scatter(data['lon'].values*1/0.017453, data['deglat'].values, data['height'].values , c=data[field].values, cmap=plt.cm.jet, s=10)
 
     axes.set_ylim(-90, 90)
     axes.set_xlim(-180, 180)
 
     # Change view to move the angle
     axes.view_init(Z)
+    _ = axes.text2D(0.98, 0.05, s="mean="+str(np.around(data[field].mean(),2))+"\nstd="+str(np.around(data[field].std(),2)), transform=axes.transAxes)
+
     # axes.view_init(X, Y, Z)
 
     plt.draw()
